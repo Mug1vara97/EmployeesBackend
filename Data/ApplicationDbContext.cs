@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using EmployerApp.Api.Models;
 
 namespace EmployerApp.Api.Data;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
@@ -12,12 +14,12 @@ public class ApplicationDbContext : DbContext
     public DbSet<Employee> Employees { get; set; }
     public DbSet<DocumentType> DocumentTypes { get; set; }
     public DbSet<EmployeeDocument> EmployeeDocuments { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // Employee configuration
         modelBuilder.Entity<Employee>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -30,7 +32,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.UpdatedAt).IsRequired();
         });
 
-        // DocumentType configuration
         modelBuilder.Entity<DocumentType>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -38,7 +39,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.CreatedAt).IsRequired();
         });
 
-        // EmployeeDocument configuration
         modelBuilder.Entity<EmployeeDocument>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -58,8 +58,23 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.DocumentTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Token).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.UserId).IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany(e => e.RefreshTokens)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
+
+
+
 
 
 

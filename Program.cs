@@ -1,6 +1,12 @@
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using EmployerApp.Api.Data;
 using EmployerApp.Api.Models;
+using EmployerApp.Api.Options;
+using EmployerApp.Api.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Microsoft.OpenApi.Models;
 
@@ -21,9 +27,42 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddOpenApi();
 
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(opts =>
+{
+    opts.SignIn.RequireConfirmedAccount = false;
+    opts.SignIn.RequireConfirmedEmail = false;
+}).AddEntityFrameworkStores<ApplicationDbContext>();
+
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        var jwtSettings = builder.Configuration.GetRequiredSection(nameof(JwtSettings)).Get<JwtSettings>()!;
+        
+        var tokenValidationParameters = new TokenValidationParameters
+        {
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key)),
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+        };
+        options.TokenValidationParameters = tokenValidationParameters;
+    });
+
+builder.Services.AddTransient<ITokenGenerator, TokenGenerator>();
 
 var app = builder.Build();
 
@@ -58,6 +97,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
