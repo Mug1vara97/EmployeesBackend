@@ -7,3 +7,5 @@ public class RefreshToken
     public Guid UserId { get; set; }
     public required ApplicationUser User { get; set; }
 }
+
+

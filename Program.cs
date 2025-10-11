@@ -63,6 +63,7 @@ builder.Services.AddAuthentication(options =>
     });
 
 builder.Services.AddTransient<ITokenGenerator, TokenGenerator>();
+builder.Services.AddTransient<ILoginHashService, LoginHashService>();
 
 var app = builder.Build();
 

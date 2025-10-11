@@ -17,21 +17,25 @@ public class UserController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationDbContext _dbContext;
     private readonly ITokenGenerator _tokenGenerator;
+    private readonly ILoginHashService _loginHashService;
 
-    public UserController(UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext, ITokenGenerator tokenGenerator)
+    public UserController(UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext, ITokenGenerator tokenGenerator, ILoginHashService loginHashService)
     {
         _userManager = userManager;
         _dbContext = dbContext;
         _tokenGenerator = tokenGenerator;
+        _loginHashService = loginHashService;
     }
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterUserRequest request)
     {
+        var hashedEmail = _loginHashService.HashLogin(request.Email);
+        
         var user = new ApplicationUser
         {
             Email = request.Email,
-            UserName = request.Email
+            UserName = hashedEmail
         };
         
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -49,6 +53,10 @@ public class UserController : ControllerBase
         var user = await _userManager.FindByEmailAsync(request.Email);
         
         if (user is null)
+            return Unauthorized();
+
+        var isPasswordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+        if (!isPasswordValid)
             return Unauthorized();
 
         var accessToken = _tokenGenerator.GenerateAccessToken(user);
